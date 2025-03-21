@@ -1,11 +1,24 @@
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import os
+from dotenv import load_dotenv  # ✅ Load environment variables
 
-DATABASE_URL = "postgresql+psycopg2://postgres:2021UBA9016@localhost:5432/postgres"
+# ✅ Load .env file
+load_dotenv()
 
+# ✅ Get DATABASE_URL from .env
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set in .env file")  # 🔴 Prevent errors if .env is missing
+
+# ✅ Create database engine
 engine = create_engine(DATABASE_URL)
+
+# ✅ Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()  # ✅ No circular import
+# ✅ Define base model
+Base = declarative_base()
 metadata = MetaData()

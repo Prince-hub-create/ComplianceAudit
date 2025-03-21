@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, TIMESTAMP, ARRAY, Date
 from sqlalchemy.orm import relationship
 from backend.database import Base  # ✅ Correct absolute import
 import datetime
@@ -47,10 +47,15 @@ class Observation(Base):
 
     audit = relationship("Audit", back_populates="observations")
 
- class User(Base):
+# ✅ **Updated User Model with New Signup Fields**
+class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
+    po_wo_so_number = Column(String, nullable=False)
+    site_name = Column(String, nullable=False)
+    company_name = Column(String, nullable=False)
+    mobile_number = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
