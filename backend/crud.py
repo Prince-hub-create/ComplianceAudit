@@ -31,9 +31,12 @@ def delete_vendor(db: Session, vendor_id: int):
 
 # --- ✅ USER AUTHENTICATION LOGIC ---
 
-# ✅ Get user by email
+# ✅ Get user by email (Case-Insensitive Search)
 def get_user_by_email(db: Session, email: str):
-    return db.query(User).filter(User.email == email).first()
+    print(f"🔍 Debug: Searching user by email - {email}")  # ✅ Debugging log
+    user = db.query(User).filter(User.email.ilike(email)).first()  # ✅ Case-insensitive email search
+    print(f"🔍 Debug: User found: {user}")  # ✅ Log user data if found
+    return user
 
 # ✅ Create a new user (Signup)
 def create_user(db: Session, name: str, email: str, po_wo_so_number: str, site_name: str, company_name: str, mobile_number: str, password: str):
