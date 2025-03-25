@@ -1,17 +1,24 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, TIMESTAMP, ARRAY, Date
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, TIMESTAMP, ARRAY, Date, Float, Numeric
 from sqlalchemy.orm import relationship
 from backend.database import Base  # ✅ Correct absolute import
 import datetime
 from sqlalchemy.sql import func
+from sqlalchemy import Enum
 
-class Vendor(Base):
-    __tablename__ = "vendors"
+class User(Base):
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
-    email = Column(String, unique=True, nullable=False)
-    phone = Column(String, nullable=False)
-    documents = relationship("Document", back_populates="vendor")
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    po_wo_so_number = Column(String, nullable=True)
+    site_name = Column(String, nullable=True)
+    company_name = Column(String, nullable=True)
+    mobile_number = Column(String, nullable=True)
+    
+    # ✅ Add Role Column (Vendor, Client, Internal)
+    role = Column(Enum("vendor", "client", "internal", name="user_roles"), nullable=False)
 
 class Document(Base):
     __tablename__ = "documents"
@@ -47,15 +54,41 @@ class Observation(Base):
 
     audit = relationship("Audit", back_populates="observations")
 
-# ✅ **Updated User Model with New Signup Fields**
-class User(Base):
-    __tablename__ = "users"
+# Vendor Model
+class Vendor(Base):
+    __tablename__ = "vendors"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    email = Column(String, unique=True, index=True, nullable=False)
-    po_wo_so_number = Column(String, nullable=False)
-    site_name = Column(String, nullable=False)
-    company_name = Column(String, nullable=False)
-    mobile_number = Column(String, nullable=False)
-    hashed_password = Column(String, nullable=False)
+    address = Column(String, nullable=False)
+
+    documents = relationship("Document", back_populates="vendor")  # ✅ Ensure relationships are correctly defined
+    
+class EmployeeRecord(Base):
+    __tablename__ = "employee_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    employee_code = Column(String(50), nullable=False)
+    employee_name = Column(String(100), nullable=False)
+    uan = Column(String(50))
+    esic_number = Column(String(50))
+    designation = Column(String(100))
+    working_days = Column(Integer)
+    basic_salary = Column(Numeric)
+    hra = Column(Numeric)
+    any_other_allowance = Column(Numeric, nullable=True)  # ✅ Ensure this exists
+    pf_contribution = Column(Numeric)
+    esic_contribution = Column(Numeric)
+    gross = Column(Numeric, nullable=False)  # ✅ Ensure this column exists
+    deductions = Column(Numeric)
+    ot = Column(Numeric)
+    advance_salary = Column(Numeric)
+    bank_transfer_reference = Column(String(100))
+    bonus_detail = Column(String(100))
+    bonus_paid_date = Column(Date)
+    leave_record = Column(String(100))
+    leave_encashment = Column(String(100))
+    fine_detail = Column(String(100))
+    damage_loss_detail = Column(String(100))
+    pf_wages = Column(Numeric)
+    net_salary = Column(Numeric)
