@@ -82,12 +82,22 @@ def test_db_connection(db: Session = Depends(lambda: SessionLocal())):
 def get_client_vendors(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if user["role"] != "client":
         raise HTTPException(status_code=403, detail="Access denied")
-    return crud.get_vendors_by_site(db, user["user_id"])
+
+    # ✅ Fetch vendors only from the site the client is assigned to
+    vendors = db.query(models.Vendor).filter(models.Vendor.site_name == user["site_name"]).all()
+    
+    return vendors
 
 @app.get("/client/vendor-documents/{vendor_id}")
 def get_vendor_documents(vendor_id: int, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if user["role"] != "client":
         raise HTTPException(status_code=403, detail="Access denied")
+
+    vendor = db.query(models.Vendor).filter(models.Vendor.id == vendor_id, models.Vendor.site_name == user["site_name"]).first()
+    
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found or not in your site")
+
     return crud.get_vendor_documents(db, vendor_id)
 
 @app.get("/client/audit-report/{vendor_id}")
@@ -98,10 +108,21 @@ def get_audit_report(vendor_id: int, user: dict = Depends(get_current_user), db:
 
 # INTERNAL DASHBOARD APIs
 @app.get("/internal/vendors/")
-def get_all_vendors(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_all_vendors(site_name: str = None, po_number: str = None, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if user["role"] != "internal":
         raise HTTPException(status_code=403, detail="Access denied")
-    return crud.get_all_vendors(db)
+
+    query = db.query(models.Vendor)
+
+    # ✅ Filter by Site (if provided)
+    if site_name:
+        query = query.filter(models.Vendor.site_name == site_name)
+
+    # ✅ Filter by PO/WO/SO Number (if provided)
+    if po_number:
+        query = query.filter(models.Vendor.po_number == po_number)
+
+    return query.all()
 
 @app.get("/internal/vendor-audit/{vendor_id}")
 def get_vendor_audit(vendor_id: int, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -120,8 +141,14 @@ def modify_audit_observations(audit_id: int, new_observations: str, user: dict =
 def get_vendor_audit_status(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if user["role"] != "vendor":
         raise HTTPException(status_code=403, detail="Access denied")
+
     audit_status = db.query(models.Audit).filter(models.Audit.vendor_id == user["user_id"]).all()
-    return {"audit_status": audit_status}
+    observations = db.query(models.Observations).filter(models.Observations.vendor_id == user["user_id"]).all()
+
+    return {
+        "audit_status": audit_status,
+        "observations": observations  # ✅ Vendors can see their own observations
+    }
 
 # New API: Download Compliance Documents
 @app.get("/download/document/{document_id}")
