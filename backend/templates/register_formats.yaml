@@ -1,0 +1,17 @@
+Central:
+  FormXVI:  # Muster Roll
+    columns: ["Serial No.", "Employee Code", "Employee Name", "Father's/Husband's Name", "Sex", "Designation", "Date of Birth", "Date of Joining", "Attendance for Each Day", "Total Attendance", "Remarks"]
+  FormXVII:  # Register of Wages
+    columns: ["Serial No.", "Employee Code", "Employee Name", "Father's/Husband's Name", "Designation", "Wage Period", "Total Attendance", "Rate of Wages", "Basic Wages", "Dearness Allowance", "Overtime Wages", "Other Allowances", "Gross Wages", "Deductions", "Net Wages Paid", "Date of Payment", "Signature/Thumb Impression"]
+  FormXVIII:  # Wage-cum-Muster Roll
+    columns: ["Serial No.", "Employee Code", "Employee Name", "Father's/Husband's Name", "Designation", "Attendance for Each Day", "Wage Rate", "Gross Pay", "Deductions", "Net Pay", "Payment Date", "Remarks"]
+  FormXIX:  # Wage Slip
+    columns: ["Employee Code", "Employee Name", "Father's/Husband's Name", "Designation", "Wage Period", "Basic Wages", "Dearness Allowance", "Overtime Wages", "Deductions", "Net Wages Paid", "Date of Payment"]
+  FormXX:  # Deductions for Damage or Loss
+    columns: ["Serial No.", "Employee Code", "Employee Name", "Father's/Husband's Name", "Designation", "Nature of Damage", "Amount of Deduction", "Date of Deduction", "Remarks"]
+  FormXXI:  # Register of Fines
+    columns: ["Serial No.", "Employee Code", "Employee Name", "Father's/Husband's Name", "Designation", "Nature of Offense", "Amount of Fine", "Date of Fine", "Remarks"]
+  FormXXII:  # Register of Advances
+    columns: ["Serial No.", "Employee Code", "Employee Name", "Father's/Husband's Name", "Designation", "Date of Advance", "Amount of Advance", "Recovery Installments", "Balance Amount", "Remarks"]
+  FormXXIII:  # Register of Overtime
+    columns: ["Serial No.", "Employee Code", "Employee Name", "Father's/Husband's Name", "Designation", "Date", "Hours Worked", "Overtime Wages", "Total Payment", "Signature"]

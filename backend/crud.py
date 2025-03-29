@@ -1,5 +1,8 @@
 from sqlalchemy.orm import Session
-from backend.models import Vendor, User, Document
+from backend.models.employee import EmployeeRecord  # Example model
+def get_employee_record():
+    from backend.models import EmployeeRecord  # ✅ Import inside function to prevent circular imports
+    # Your database query using EmployeeRecord
 from passlib.context import CryptContext
 
 # Password hashing setup
@@ -57,3 +60,29 @@ def create_user(db: Session, name: str, email: str, po_wo_so_number: str, site_n
 
 def get_user_by_id(db: Session, user_id: int):
     return db.query(User).filter(User.id == user_id).first()
+
+def create_employee(db: Session, name: str, uan: str):
+    db_employee = EmployeeRecord(name=name, uan=uan)
+    db.add(db_employee)
+    db.commit()  # Save changes
+    db.refresh(db_employee)  # Refresh to get the latest data
+    return db_employee
+
+def get_employee_by_id(db: Session, emp_id: int):
+    return db.query(EmployeeRecord).filter(EmployeeRecord.id == emp_id).first()
+
+def update_employee(db: Session, emp_id: int, name: str, uan: str):
+    employee = db.query(EmployeeRecord).filter(EmployeeRecord.id == emp_id).first()
+    if employee:
+        employee.name = name
+        employee.uan = uan
+        db.commit()
+        db.refresh(employee)  # Refresh after updating
+    return employee
+
+def delete_employee(db: Session, emp_id: int):
+    employee = db.query(EmployeeRecord).filter(EmployeeRecord.id == emp_id).first()
+    if employee:
+        db.delete(employee)  # Remove from DB
+        db.commit()
+    return employee

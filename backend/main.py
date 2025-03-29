@@ -14,19 +14,39 @@ from backend.database import SessionLocal, engine
 from backend import crud, models
 from backend.schemas import VendorCreate, UserCreate
 from typing import List, Literal
+from backend.routes import payroll
+from backend.models.employee import EmployeeRecord  # ✅ Correct import
+from backend import schemas  # Adjust the import based on your project structure
+from backend.schemas import EmployeeCreate  # Importing EmployeeCreate properly
+from fastapi import FastAPI, UploadFile, File
+import pandas as pd
+from backend.utils import compliance_audit
+from fastapi import FastAPI
+from backend.routes import payroll  # Correct import path
+from backend.routes.payroll import router
+
+
+
 
 # Create Database Tables
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+
+app.include_router(router)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["http://localhost:3000"],  # Allow frontend domain
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Password hashing setup
@@ -83,10 +103,14 @@ def get_client_vendors(user: dict = Depends(get_current_user), db: Session = Dep
     if user["role"] != "client":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # ✅ Fetch vendors only from the site the client is assigned to
-    vendors = db.query(models.Vendor).filter(models.Vendor.site_name == user["site_name"]).all()
+    client = db.query(models.User).filter(models.User.id == user["user_id"]).first()
+    if not client or not client.site_name:
+        raise HTTPException(status_code=400, detail="Client site not found")
+
+    vendors = db.query(models.Vendor).filter(models.Vendor.site_name == client.site_name).all()
     
     return vendors
+
 
 @app.get("/client/vendor-documents/{vendor_id}")
 def get_vendor_documents(vendor_id: int, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -142,24 +166,37 @@ def get_vendor_audit_status(user: dict = Depends(get_current_user), db: Session 
     if user["role"] != "vendor":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    audit_status = db.query(models.Audit).filter(models.Audit.vendor_id == user["user_id"]).all()
-    observations = db.query(models.Observations).filter(models.Observations.vendor_id == user["user_id"]).all()
+    vendor = db.query(models.Vendor).filter(models.Vendor.user_id == user["user_id"]).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    audit_status = db.query(models.Audit).filter(models.Audit.vendor_id == vendor.id).all()
+    observations = db.query(models.Observations).filter(models.Observations.vendor_id == vendor.id).all()
 
     return {
         "audit_status": audit_status,
-        "observations": observations  # ✅ Vendors can see their own observations
+        "observations": observations
     }
+
 
 # New API: Download Compliance Documents
 @app.get("/download/document/{document_id}")
 def download_document(document_id: int, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     document = db.query(models.Document).filter(models.Document.id == document_id).first()
+    
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+
+    # Ensure vendors can only download their own files
+    if user["role"] == "vendor" and document.vendor_id != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     file_path = os.path.join("uploads", document.filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
+
     return FileResponse(file_path, media_type="application/octet-stream", filename=document.filename)
+
 
 
 # ✅ Test Route
@@ -376,3 +413,57 @@ async def startup_event():
         print(route.path)
 
 print("FastAPI is running with registered routes:", app.routes)
+
+@app.post("/employees/", response_model=schemas.Employee)
+def create_employee(employee: schemas.EmployeeCreate, db: Session = Depends(get_db)):
+    return crud.create_employee(db=db, name=employee.name, uan=employee.uan)
+
+@app.get("/employees/", response_model=list[schemas.Employee])
+def get_employees(db: Session = Depends(get_db)):
+    return crud.get_employees(db)
+
+@app.get("/employees/{emp_id}", response_model=schemas.Employee)
+def get_employee(emp_id: int, db: Session = Depends(get_db)):
+    employee = crud.get_employee_by_id(db, emp_id)
+    if employee is None:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return employee
+
+@app.put("/employees/{emp_id}", response_model=schemas.Employee)
+def update_employee(emp_id: int, employee: schemas.EmployeeCreate, db: Session = Depends(get_db)):
+    updated_employee = crud.update_employee(db, emp_id, employee.name, employee.uan)
+    if updated_employee is None:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return updated_employee
+
+@app.delete("/employees/{emp_id}", response_model=schemas.Employee)
+def delete_employee(emp_id: int, db: Session = Depends(get_db)):
+    deleted_employee = crud.delete_employee(db, emp_id)
+    if deleted_employee is None:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return deleted_employee
+
+@app.post("/audit/")
+async def audit_compliance(file: UploadFile = File(...)):
+    try:
+        df = pd.read_excel(file.file)
+
+        # Apply Compliance Validations
+        df = validate_minimum_wage(df, min_wage=10000)
+        df = validate_pf_compliance(df)
+        df = validate_esic_compliance(df)
+        df = validate_overtime(df)
+        df = validate_salary_payment(df)
+
+        # Generate an audit report PDF
+        pdf_filename = "audit_report.pdf"
+        generate_audit_report(df, filename=pdf_filename)
+
+        return {"message": "Audit completed successfully", "report": pdf_filename}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# Register Routes
+app.include_router(payroll.router, prefix="/api")

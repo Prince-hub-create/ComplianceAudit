@@ -4,6 +4,8 @@ from backend.database import Base  # ✅ Correct absolute import
 import datetime
 from sqlalchemy.sql import func
 from sqlalchemy import Enum
+from pydantic import BaseModel
+from typing import List
 
 class User(Base):
     __tablename__ = "users"
@@ -92,3 +94,8 @@ class EmployeeRecord(Base):
     damage_loss_detail = Column(String(100))
     pf_wages = Column(Numeric)
     net_salary = Column(Numeric)
+
+class RegisterRequest(BaseModel):
+    state: str
+    register_type: str
+    excel_file: str  # Path to uploaded Excel file
