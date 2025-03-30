@@ -4,6 +4,11 @@ from backend.services import process_register
 
 router = APIRouter()
 
+@router.get("/login")
+async def login():
+    return {"message": "Login endpoint works"}
+
+
 @router.post("/generate_register/")
 async def generate_register(state: str, register_type: str, file: UploadFile = File(...), email: str = Form(...)):
     """API to generate registers dynamically"""

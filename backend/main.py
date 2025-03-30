@@ -201,8 +201,12 @@ def download_document(document_id: int, user: dict = Depends(get_current_user), 
 
 # ✅ Test Route
 @app.get("/")
-def root():
+async def root():
     return {"message": "Labor Compliance Audit API is running!"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
 
 # ✅ Define User Registration Schema
 class UserCreate(BaseModel):
