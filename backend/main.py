@@ -467,3 +467,58 @@ async def audit_compliance(file: UploadFile = File(...)):
 
 # Register Routes
 app.include_router(payroll.router, prefix="/api")
+app = FastAPI()
+
+
+# Function to extract text from PDF
+def extract_text_from_pdf(file):
+    with pdfplumber.open(file) as pdf:
+        text = ""
+        for page in pdf.pages:
+            text += page.extract_text() + "\n"
+    return text
+
+# Function to extract WC & BOCW details
+def extract_wc_bocw_data(file):
+    text = extract_text_from_pdf(file.file)
+
+    # Sample Extraction (Modify based on real documents)
+    wc_policy_number = "WCP123456789"  # Extract using regex
+    wc_expiry_date = datetime.strptime("2025-06-30", "%Y-%m-%d")
+    wc_employee_count = 50
+    bocw_registration_number = "BOCW987654321"
+    bocw_employee_count = 20
+    site_address = "Construction Site, Mumbai"
+
+    return {
+        "wc_policy_number": wc_policy_number,
+        "wc_expiry_date": wc_expiry_date,
+        "wc_employee_count": wc_employee_count,
+        "bocw_registration_number": bocw_registration_number,
+        "bocw_employee_count": bocw_employee_count,
+        "site_address": site_address
+    }
+
+# API to upload WC & BOCW documents
+@app.post("/upload_wc_bocw/")
+async def upload_wc_bocw(vendor_id: int, file: UploadFile = File(...)):
+    db = SessionLocal()
+
+    extracted_data = extract_wc_bocw_data(file)
+    
+    new_entry = WCBocwDetails(
+        vendor_id=vendor_id,
+        site_address=extracted_data["site_address"],
+        wc_policy_number=extracted_data["wc_policy_number"],
+        wc_expiry_date=extracted_data["wc_expiry_date"],
+        wc_employee_count=extracted_data["wc_employee_count"],
+        bocw_registration_number=extracted_data["bocw_registration_number"],
+        bocw_employee_count=extracted_data["bocw_employee_count"]
+    )
+    
+    db.add(new_entry)
+    db.commit()
+    db.close()
+
+    return {"message": "WC & BOCW details saved successfully!"}
+

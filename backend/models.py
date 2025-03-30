@@ -99,3 +99,16 @@ class RegisterRequest(BaseModel):
     state: str
     register_type: str
     excel_file: str  # Path to uploaded Excel file
+
+class WCBocwDetails(Base):
+    __tablename__ = "wc_bocw_details"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_id = Column(Integer, index=True)
+    site_address = Column(String)
+    wc_policy_number = Column(String)
+    wc_expiry_date = Column(Date)
+    wc_employee_count = Column(Integer)
+    bocw_registration_number = Column(String)
+    bocw_employee_count = Column(Integer)
+    compliance_status = Column(Boolean, default=True)  # True = Compliant, False = Non-compliant

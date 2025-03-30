@@ -5,6 +5,8 @@ from models import Audit, Observation
 from typing import List
 from pydantic import BaseModel
 from datetime import date
+from database import get_db
+import pandas as pd
 
 router = APIRouter()
 
@@ -83,3 +85,66 @@ def add_observation(audit_id: int, request: ObservationRequest, db: Session = De
     db.refresh(observation)  # Ensure we return the latest data
 
     return observation
+
+router = APIRouter()
+
+@router.post("/process-excel/")
+async def process_excel(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    try:
+        df = pd.read_excel(io.BytesIO(file.file.read()))
+
+        # Required columns in the Excel file
+        required_columns = ["Employee Code", "Employee Name", "Basic", "Gross", "PF Deduction", "ESIC Deduction", "OT Hours"]
+        for col in required_columns:
+            if col not in df.columns:
+                raise HTTPException(status_code=400, detail=f"Missing column: {col}")
+
+        # Compliance Checks
+        observations = []
+        for _, row in df.iterrows():
+            if row["PF Deduction"] == 0:
+                observations.append(f"PF not deducted for {row['Employee Name']} ({row['Employee Code']})")
+            if row["ESIC Deduction"] == 0 and row["Gross"] < 21000:
+                observations.append(f"ESIC missing for {row['Employee Name']} ({row['Employee Code']})")
+            if row["OT Hours"] > 50:
+                observations.append(f"Excess overtime for {row['Employee Name']} ({row['Employee Code']})")
+
+        # Store audit report in DB
+        new_report = AuditReport(compliance_status="Completed", observations=observations)
+        db.add(new_report)
+        db.commit()
+        return {"message": "Audit processed successfully", "observations": observations}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/get-audit-report/{vendor_id}")
+def get_audit_report(vendor_id: int, db: Session = Depends(get_db)):
+    report = db.query(AuditReport).filter(AuditReport.vendor_id == vendor_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="No audit report found")
+    return {"compliance_status": report.compliance_status, "observations": report.observations}
+
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+
+@router.get("/download-audit-report/{vendor_id}")
+def download_audit_report(vendor_id: int, db: Session = Depends(get_db)):
+    report = db.query(AuditReport).filter(AuditReport.vendor_id == vendor_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Audit report not found")
+
+    # Create PDF
+    pdf_path = f"reports/audit_report_{vendor_id}.pdf"
+    c = canvas.Canvas(pdf_path, pagesize=letter)
+    c.drawString(100, 750, "Audit Report")
+    c.drawString(100, 730, f"Vendor ID: {vendor_id}")
+    c.drawString(100, 710, f"Compliance Status: {report.compliance_status}")
+    
+    y_position = 690
+    for obs in report.observations:
+        c.drawString(100, y_position, f"- {obs}")
+        y_position -= 20
+
+    c.save()
+    return {"message": "PDF generated", "pdf_path": pdf_path}
